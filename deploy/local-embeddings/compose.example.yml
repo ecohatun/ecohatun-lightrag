@@ -1,0 +1,28 @@
+# Example only. Deploy as a private internal service, no published host port.
+# Replace MODEL_VOLUME with the existing named volume containing the model files.
+# Provide EMBEDDINGS_API_KEY via private Dokploy Environment; NEVER commit it.
+services:
+  embeddings:
+    build: .
+    restart: unless-stopped
+    environment:
+      EMBEDDINGS_API_KEY: ${EMBEDDINGS_API_KEY:?Set a private API key}
+      MODEL_ROOT: /models
+      MODEL_ID: MintplexLabs/multilingual-e5-small
+    volumes:
+      - type: volume
+        source: anythingllm-model-storage
+        target: /models/MintplexLabs/multilingual-e5-small
+        read_only: true
+        volume:
+          subpath: models/MintplexLabs/multilingual-e5-small
+    networks:
+      - internal
+volumes:
+  anythingllm-model-storage:
+    external: true
+    name: ${MODEL_VOLUME:?Set the name of the already existing AnythingLLM storage volume}
+networks:
+  internal:
+    external: true
+    name: ${INTERNAL_DOCKER_NETWORK:?Set the private LightRAG-accessible Docker network}
