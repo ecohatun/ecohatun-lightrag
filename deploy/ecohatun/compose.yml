@@ -1,0 +1,117 @@
+services:
+  proxy-deepseek:
+    image: ghcr.io/ecohatun/ecohatun-lightrag:asymmetric-test
+    restart: unless-stopped
+    entrypoint:
+    - python
+    - /proxy/iniciar_proxy_compose.py
+    environment:
+      DEEPSEEK_SECRET_FILE: /run/secrets/deepseek_api_key
+      PROXY_TOKEN_FILE: /run/secrets/proxy_access_token
+      PROXY_DATA_DIR: /proxy-data
+      PROXY_SCRIPT_PATH: /proxy/proxy_integrado.py
+      PROXY_MAX_REQUESTS: ${PROXY_MAX_REQUESTS:-2}
+      PROXY_MAX_BODY: ${PROXY_MAX_BODY:-20480}
+      PROXY_MAX_OUTPUT_TOKENS: ${PROXY_MAX_OUTPUT_TOKENS:-512}
+    volumes:
+    - ./integraciones:/proxy:ro
+    - ecohatun_proxy_data:/proxy-data
+    secrets:
+    - deepseek_api_key
+    - proxy_access_token
+    networks:
+    - ecohatun_rag_internal
+    - ecohatun_proxy_egress
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import socket; s=socket.create_connection(('127.0.0.1',8769),timeout=3); s.close()
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+  embeddings-e5:
+    image: ghcr.io/ecohatun/ecohatun-embeddings:openai-test
+    restart: unless-stopped
+    environment:
+      EMBEDDINGS_API_KEY: ${EMBEDDING_BINDING_API_KEY:?Configurar clave E5}
+      MODEL_ID: MintplexLabs/multilingual-e5-small
+      MODEL_ROOT: /models
+      HOST: 0.0.0.0
+      PORT: '8080'
+    volumes:
+    - ecohatun_e5_models:/models
+    networks:
+    - ecohatun_rag_internal
+    mem_limit: 2g
+    cpus: 2.0
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - const s=require('net').connect(8080,'127.0.0.1');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));s.setTimeout(3000,()=>{s.destroy();process.exit(1)})
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+  lightrag:
+    image: ghcr.io/ecohatun/ecohatun-lightrag:asymmetric-test
+    restart: unless-stopped
+    environment:
+      LLM_BINDING: openai
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      LLM_BINDING_HOST: http://proxy-deepseek:8769/v1
+      EMBEDDING_BINDING: openai
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-MintplexLabs/multilingual-e5-small}
+      EMBEDDING_BINDING_HOST: http://embeddings-e5:8080/v1
+      EMBEDDING_BINDING_API_KEY: ${EMBEDDING_BINDING_API_KEY}
+      EMBEDDING_DIM: '384'
+      EMBEDDING_QUERY_PREFIX: 'query: '
+      EMBEDDING_DOCUMENT_PREFIX: 'passage: '
+      WORKING_DIR: /app/data
+      INPUT_DIR: /app/data/input
+      OUTPUT_DIR: /app/data/output
+      PROXY_TOKEN_FILE: /run/secrets/proxy_access_token
+      PORT: '9622'
+    volumes:
+    - ecohatun_lightrag_data:/app/data
+    - ./integraciones:/opt/ecohatun:ro
+    networks:
+    - ecohatun_rag_internal
+    mem_limit: 2g
+    cpus: 2.0
+    entrypoint:
+    - python
+    - /opt/ecohatun/iniciar_lightrag_compose.py
+    secrets:
+    - proxy_access_token
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import socket; s=socket.create_connection(('127.0.0.1',9622),timeout=3); s.close()
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+volumes:
+  ecohatun_lightrag_data: null
+  ecohatun_e5_models: null
+  ecohatun_proxy_data: null
+networks:
+  ecohatun_rag_internal:
+    driver: bridge
+    internal: true
+  ecohatun_proxy_egress:
+    driver: bridge
+secrets:
+  deepseek_api_key:
+    file: ${DEEPSEEK_KEY_FILE:?Configurar archivo secreto DeepSeek}
+  proxy_access_token:
+    file: ${PROXY_TOKEN_FILE_HOST:?Configurar archivo token interno}

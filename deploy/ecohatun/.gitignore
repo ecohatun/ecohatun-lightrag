@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+*.key
+*.token
+*.sqlite3
+*.db
+*.bak
+*.pyc
+__pycache__/
+proxy_access.token
+documento-ocr-prueba.json
+rag_storage/
+proxy-data/
+secrets/
