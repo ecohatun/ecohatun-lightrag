@@ -31,16 +31,23 @@ async function body(req) {
 http.createServer(async (req,res) => {
   try {
     if (req.url === "/health" && req.method === "GET") return send(res, 200, { status: "healthy", model });
-    if (req.method !== "POST" || !["/v1/embeddings/documents","/v1/embeddings/queries"].includes(req.url)) return send(res, 404, { error: "not found" });
+    const route = req.url;
+    if (req.method !== "POST" || !["/v1/embeddings", "/v1/embeddings/documents", "/v1/embeddings/queries"].includes(route)) return send(res, 404, { error: "not found" });
     if (!auth(req)) return send(res, 401, { error: "unauthorized" });
     const payload = await body(req);
     const arr = typeof payload.input === "string" ? [payload.input] : payload.input;
     if (!Array.isArray(arr) || !arr.length || arr.length > 32 || arr.some(s => typeof s !== "string" || s.length > 20000)) return send(res, 400, { error: "input must be 1-32 strings (max 20000 characters each)" });
-    const prefix = req.url.endsWith("/queries") ? "query: " : "passage: ";
+    const standardRoute = route === "/v1/embeddings";
+    // The OpenAI-compatible route requires callers (LightRAG) to supply the E5 context prefix.
+    // Existing /queries and /documents routes retain their automatic prefix behavior.
+    if (standardRoute && arr.some(s => !/^(query|passage):\s+\S/i.test(s))) {
+      return send(res, 400, { error: "standard endpoint requires query: or passage: prefix on every input" });
+    }
+    const prefix = route.endsWith("/queries") ? "query: " : "passage: ";
     const items = [];
     for (let i=0;i<arr.length;i++) {
-      const input = arr[i].replace(/^(query|passage):\s*/i, "");
-      const vector = await extractor(prefix + input, { pooling: "mean", normalize: true });
+      const input = standardRoute ? arr[i] : prefix + arr[i].replace(/^(query|passage):\s*/i, "");
+      const vector = await extractor(input, { pooling: "mean", normalize: true });
       const embedding = Array.from(vector.data);
       if (embedding.length !== 384) throw new Error("Unexpected embedding dimension: " + embedding.length);
       items.push({ object:"embedding", index:i, embedding });
