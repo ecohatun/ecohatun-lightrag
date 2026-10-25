@@ -1,0 +1,10 @@
+# Ajuste de almacenamiento para el servicio EXISTENTE de LightRAG en Dokploy.
+# Usar como segundo archivo Compose del mismo proyecto, nunca como stack independiente.
+# Mantener el Compose original, sus credenciales, redes, volúmenes y etiquetas Traefik.
+services:
+  lightrag:
+    environment:
+      LIGHTRAG_KV_STORAGE: PGKVStorage
+      LIGHTRAG_VECTOR_STORAGE: PGVectorStorage
+      LIGHTRAG_GRAPH_STORAGE: NetworkXStorage
+      LIGHTRAG_DOC_STATUS_STORAGE: PGDocStatusStorage
