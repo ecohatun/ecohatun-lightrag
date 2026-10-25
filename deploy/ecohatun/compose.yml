@@ -78,6 +78,7 @@ services:
       OUTPUT_DIR: /app/data/output
       PROXY_TOKEN_FILE: /run/secrets/proxy_access_token
       PORT: '9622'
+      EMBEDDING_ASYMMETRIC: 'true'
     volumes:
     - ecohatun_lightrag_data:/app/data
     - ./integraciones:/opt/ecohatun:ro
@@ -102,14 +103,17 @@ services:
       start_period: 60s
 volumes:
   ecohatun_lightrag_data: null
-  ecohatun_e5_models: null
+  ecohatun_e5_models:
+    external: true
+    name: ${E5_VOLUME_NAME:-ecohatun-e5-models-staging}
   ecohatun_proxy_data: null
 networks:
   ecohatun_rag_internal:
-    driver: bridge
-    internal: true
+    external: true
+    name: ${RAG_INTERNAL_NETWORK:-ecohatun-e5-staging-net}
   ecohatun_proxy_egress:
-    driver: bridge
+    external: true
+    name: ${PROXY_EGRESS_NETWORK:-ecohatun-ocr-proxy-egress}
 secrets:
   deepseek_api_key:
     file: ${DEEPSEEK_KEY_FILE:?Configurar archivo secreto DeepSeek}
