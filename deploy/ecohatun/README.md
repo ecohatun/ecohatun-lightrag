@@ -81,3 +81,16 @@ No conectar este despliegue a clientes reales hasta completar
 las pruebas pendientes.
 
 No reutilizar los volumenes de produccion durante las pruebas.
+
+## Autenticacion de LightRAG
+
+Configurar LIGHTRAG_API_KEY con una clave aleatoria segura.
+No publicar la clave en GitHub.
+
+Prueba realizada en LightRAG 1.5.8:
+- GET /documents/status_counts sin X-API-Key: HTTP 403.
+- GET /documents/status_counts con X-API-Key valida: HTTP 200.
+
+El campo auth_mode de /health refleja la configuracion de cuentas de usuario y no demuestra por si solo si la API key protege los endpoints.
+
+Antes de publicar la interfaz web, configurar y verificar por separado su autenticacion y el control de acceso de red.

@@ -79,6 +79,7 @@ services:
       PROXY_TOKEN_FILE: /run/secrets/proxy_access_token
       PORT: '9622'
       EMBEDDING_ASYMMETRIC: 'true'
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY:?Configurar clave de acceso LightRAG}
     volumes:
     - ecohatun_lightrag_data:/app/data
     - ./integraciones:/opt/ecohatun:ro
