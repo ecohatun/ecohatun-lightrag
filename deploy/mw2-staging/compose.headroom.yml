@@ -1,0 +1,46 @@
+name: ecohatun-mw2-headroom-staging
+services:
+  headroom:
+    build:
+      context: .
+      dockerfile: headroom.Dockerfile
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:?Set a Python 3.12 image pinned by digest}
+    image: ecohatun/headroom-staging:0.43.1
+    environment:
+      HEADROOM_PROXY_TOKEN: ${HEADROOM_PROXY_TOKEN:?Set a staging proxy token}
+      OMNIROUTE_API_KEY: ${OMNIROUTE_STAGING_API_KEY:?Set a separate staging consumer key}
+      OPENAI_TARGET_API_URL: http://or-smart-zaivmv-omniroute-1:20128
+      HEADROOM_OPTIMIZE: ${HEADROOM_OPTIMIZE:-0}
+      HEADROOM_TELEMETRY: "off"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      HOME: /data
+      XDG_CACHE_HOME: /data/cache
+    volumes:
+      - headroom_data:/data
+    networks:
+      mw2:
+        aliases:
+          - mw2-headroom-staging
+      dokploy: {}
+    mem_limit: 1024m
+    cpus: 0.75
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/readyz', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 15
+      start_period: 30s
+
+networks:
+  mw2:
+    external: true
+    name: ecohatun-mw2-staging
+  dokploy:
+    external: true
+    name: dokploy-network
+
+volumes:
+  headroom_data:

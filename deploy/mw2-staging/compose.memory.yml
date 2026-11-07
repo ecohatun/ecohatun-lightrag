@@ -1,0 +1,73 @@
+name: ecohatun-mw2-memory-staging
+services:
+  postgres:
+    image: pgvector/pgvector@sha256:2017da03379b27508603c44e9041a082ef53ef711fed614ccd5044eaf9df6e31
+    environment:
+      POSTGRES_DB: mw2_hindsight_staging
+      POSTGRES_USER: mw2_hindsight_staging
+      POSTGRES_PASSWORD: ${HINDSIGHT_DB_PASSWORD:?Set a staging database password}
+    volumes:
+      - memory_data:/var/lib/postgresql/data
+    networks:
+      - database
+    mem_limit: 512m
+    cpus: 0.5
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mw2_hindsight_staging -d mw2_hindsight_staging"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  hindsight:
+    build:
+      context: .
+      dockerfile: hindsight.Dockerfile
+    image: ecohatun/hindsight-staging:1.2.0-static-keys
+    environment:
+      HINDSIGHT_API_DATABASE_URL: postgresql://mw2_hindsight_staging:${HINDSIGHT_DB_PASSWORD:?Set password}@postgres:5432/mw2_hindsight_staging
+      HINDSIGHT_API_LLM_PROVIDER: openai
+      HINDSIGHT_API_LLM_BASE_URL: http://mw2-headroom-staging:8787/v1
+      HINDSIGHT_API_LLM_API_KEY: ${HEADROOM_PROXY_TOKEN:?Set a staging proxy token}
+      HINDSIGHT_API_LLM_MODEL: ${OMNIROUTE_MODEL_ALIAS:?Set the authorized staging alias}
+      HINDSIGHT_API_EMBEDDINGS_PROVIDER: openai
+      HINDSIGHT_API_EMBEDDINGS_OPENAI_BASE_URL: http://compose-quantify-primary-hard-drive-dgule3-e5-large-1:8080/v1
+      HINDSIGHT_API_EMBEDDINGS_OPENAI_API_KEY: ${E5_STAGING_API_KEY:?Set the authorized E5 credential}
+      HINDSIGHT_API_EMBEDDINGS_OPENAI_MODEL: intfloat/multilingual-e5-large
+      HINDSIGHT_API_EMBEDDINGS_OPENAI_BATCH_SIZE: "1"
+      HINDSIGHT_API_EMBEDDINGS_MAX_CONCURRENT_REQUESTS: "1"
+      HINDSIGHT_API_EMBEDDINGS_MAX_INPUT_TOKENS: "512"
+      HINDSIGHT_API_EMBEDDINGS_QUERY_PREFIX: "query: "
+      HINDSIGHT_API_EMBEDDINGS_PASSAGE_PREFIX: "passage: "
+      HINDSIGHT_API_ENABLE_RERANKING: "false"
+      HINDSIGHT_API_ENABLE_AUTO_CONSOLIDATION: "false"
+      HINDSIGHT_API_TENANT_EXTENSION: hindsight_ext_static_keys_tenant:StaticKeysTenantExtension
+      HINDSIGHT_API_TENANT_USERS: "pilot_a:${HINDSIGHT_PILOT_A_KEY:?Set identity A key},pilot_b:${HINDSIGHT_PILOT_B_KEY:?Set identity B key}"
+      HINDSIGHT_API_TENANT_SCHEMA_PREFIX: mw2_staging
+      HINDSIGHT_API_MCP_ENABLED: "true"
+      HINDSIGHT_API_MCP_STATELESS: "true"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - database
+      - mw2
+      - dokploy
+    mem_limit: 1536m
+    cpus: 1
+    restart: "no"
+
+networks:
+  database:
+    internal: true
+  mw2:
+    external: true
+    name: ecohatun-mw2-staging
+  dokploy:
+    external: true
+    name: dokploy-network
+
+volumes:
+  memory_data:
