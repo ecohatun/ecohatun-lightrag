@@ -1,6 +1,8 @@
+import argparse
 import concurrent.futures
 import json
 import os
+import re
 import time
 import uuid
 from urllib.error import HTTPError
@@ -25,6 +27,12 @@ def post(url, payload, token=None, extra_headers=None, timeout=15):
             raise RuntimeError("SSE_WITHOUT_RESULT")
         return json.load(response), session
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--recall-bank", help="Read a previously verified synthetic test bank")
+args = parser.parse_args()
+if args.recall_bank and not re.fullmatch(r"mw2-acceptance-[0-9a-f]{12}", args.recall_bank):
+    parser.error("--recall-bank must name a synthetic MW2 acceptance bank")
+
 phase = "CONFIG"
 try:
     identities = {}
@@ -34,17 +42,18 @@ try:
     assert len(identities) == 2 and len(set(identities.values())) == 2
     assert os.environ["HINDSIGHT_API_LLM_BASE_URL"].rstrip("/") == "http://mw2-headroom-staging:8787/v1"
     print("TWO_DISTINCT_IDENTITIES_AND_HEADROOM_ROUTE", flush=True)
-    phase = "E5"
-    e5 = "http://compose-quantify-primary-hard-drive-dgule3-e5-large-1:8080/v1"
-    assert os.environ["HINDSIGHT_API_EMBEDDINGS_OPENAI_BASE_URL"].rstrip("/") == e5
-    embedding, _ = post(e5 + "/embeddings", {
-        "model": "intfloat/multilingual-e5-large",
-        "input": ["query: comprobacion sintetica de dimension MW2"],
-    }, os.environ["HINDSIGHT_API_EMBEDDINGS_OPENAI_API_KEY"])
-    dimension = len(embedding["data"][0]["embedding"])
-    print("E5_DIMENSION", dimension, flush=True)
-    assert dimension == 1024
-    bank = "mw2-acceptance-" + uuid.uuid4().hex[:12]
+    if not args.recall_bank:
+        phase = "E5"
+        e5 = "http://compose-quantify-primary-hard-drive-dgule3-e5-large-1:8080/v1"
+        assert os.environ["HINDSIGHT_API_EMBEDDINGS_OPENAI_BASE_URL"].rstrip("/") == e5
+        embedding, _ = post(e5 + "/embeddings", {
+            "model": "intfloat/multilingual-e5-large",
+            "input": ["query: comprobacion sintetica de dimension MW2"],
+        }, os.environ["HINDSIGHT_API_EMBEDDINGS_OPENAI_API_KEY"])
+        dimension = len(embedding["data"][0]["embedding"])
+        print("E5_DIMENSION", dimension, flush=True)
+        assert dimension == 1024
+    bank = args.recall_bank or ("mw2-acceptance-" + uuid.uuid4().hex[:12])
     endpoint = "http://127.0.0.1:8888/mcp/" + bank + "/"
     initialize = {
         "jsonrpc": "2.0", "id": 1, "method": "initialize",
@@ -96,10 +105,11 @@ try:
         }, timeout=45)
         return round((time.monotonic() - start) * 1000)
 
-    phase = "MCP_RETAIN"
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        retention = list(executor.map(retain, cases))
-    print("RETAIN_MS_A_B", *retention, flush=True)
+    if not args.recall_bank:
+        phase = "MCP_RETAIN"
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            retention = list(executor.map(retain, cases))
+        print("RETAIN_MS_A_B", *retention, flush=True)
 
     def recall(case):
         token, marker, _ = case
@@ -123,7 +133,8 @@ try:
     for label, (own, other, elapsed) in zip(("A", "B"), recalls):
         print("IDENTITY", label, "OWN_MEMORY", own, "OTHER_MEMORY", other, "RECALL_MS", elapsed, flush=True)
     assert all(own and not other for own, other, _ in recalls)
-    print("MCP_MEMORY_AND_ISOLATION_PASS", bank, flush=True)
+    result = "MCP_EXISTING_MEMORY_PASS" if args.recall_bank else "MCP_MEMORY_AND_ISOLATION_PASS"
+    print(result, bank, flush=True)
 except Exception as error:
     print("TEST_FAILED", phase, type(error).__name__, getattr(error, "code", ""), flush=True)
     raise SystemExit(1)
