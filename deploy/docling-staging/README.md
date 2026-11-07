@@ -14,3 +14,9 @@ El presupuesto inicial es de una vCPU y 2,5 GiB de RAM como límites, con un tra
 - Validar después la misma extracción desde una app separada del Dify piloto. Reservar la prueba SaleSmartly y MW1 para cuando el contrato del adjunto esté verificado.
 
 Para revertir el ensayo, detener únicamente `docling-staging` desde Dokploy. Los adjuntos de prueba son sintéticos y su contenido queda fuera del índice comercial.
+
+## Comprobación previa en el VPS
+
+El 7 de noviembre de 2026 se verificaron 4 vCPU disponibles, 5995 MiB de RAM disponible y 63 GiB libres en el volumen de Docker. El manifiesto de la imagen oficial respondió por el digest fijado. La consulta se limitó al manifiesto, sin descargar las capas. El inventario Docker, incluidos los contenedores detenidos, no mostró nombres Docling o Multimedia.
+
+La swap tiene un archivo de 4 GiB (1,5 GiB en uso) y zram de 6 GiB (3,4 GiB de espacio lógico en uso). Zswap está desactivado. El ensayo sigue pendiente de registro y despliegue en Dokploy.
