@@ -18,3 +18,7 @@ Prueba ejecutada por MCP en Hindsight staging con el script versionado en `cf58c
 La primera ejecución agotó el tiempo de espera contra E5-Large. El problema se reprodujo desde Hindsight, LightRAG y el propio contenedor E5. E5 volvió a saludable tras el reinicio autorizado y su calentamiento. La prueba posterior confirmó la generación de embeddings desde producción.
 
 El resultado verifica embeddings, acceso MCP y aislamiento de los dos casos sintéticos. Quedan pendientes una prueba de persistencia tras reiniciar Hindsight, el contrato con OpenCode, una comparación de tokens con y sin compresión y la revisión de consumidores antes de decidir la sustitución de Claude-Mem.
+
+### Headroom
+
+La primera prueba de compresión explícita del 7 de noviembre de 2026 a las 11:49 UTC llegó a `/v1/compress` desde loopback y agotó la espera del cliente (20 s). Las dos consultas de inferencia y la medición de tokens quedaron pendientes. `vmstat` observado después registró entre 63 y 69 % de CPU steal en las cuatro muestras de intervalo. La causa del timeout sigue sin confirmar. El siguiente ensayo aísla SmartCrusher en modo estructural sin pérdida y conserva la ruta de inferencia del piloto.

@@ -1,7 +1,9 @@
 """Compare explicit Headroom compression against the staging passthrough."""
+from copy import deepcopy
 import json
 import os
 import re
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -44,7 +46,7 @@ def fixture():
     ]
     rows.insert(len(rows) // 2, EXPECTED)
     return [
-        {"role": "system", "content": "Responde solo con un objeto JSON con las claves modelo, tubos, pagina y fuente. Usa exclusivamente el registro del modelo pedido en el resultado de herramienta."},
+        {"role": "system", "content": "Responde solo con un objeto JSON con las claves modelo, tubos, pagina y fuente. Usa exclusivamente el registro del modelo pedido en el resultado de herramienta. Si los datos están en forma tabular, interpreta las filas según sus columnas."},
         {"role": "user", "content": "¿Cuántos tubos tiene la terma T-200? Cita el manual y la página."},
         {"role": "assistant", "content": None, "tool_calls": [{
             "id": "call_catalogo", "type": "function",
@@ -60,7 +62,7 @@ def inference(label, messages):
         "model": MODEL,
         "messages": messages,
         "temperature": 0,
-        "max_tokens": 384,
+        "max_tokens": 768,
     }, 24)
     usage = result.get("usage") or {}
     try:
@@ -79,14 +81,26 @@ def main():
     if os.environ.get("HEADROOM_OPTIMIZE", "0") != "0":
         raise SystemExit("ABORT_PROXY_OPTIMIZATION_ENABLED")
     messages = fixture()
-    compressed, elapsed = post("/v1/compress", {
-        "model": MODEL,
-        "messages": messages,
-        "config": {"mode": "lossy_inline", "protect_recent": 0, "target_ratio": 0.5},
-    }, 20)
-    candidate = compressed.get("messages")
-    print("COMPRESS", "BEFORE_ESTIMATE", compressed.get("tokens_before"),
-          "AFTER_ESTIMATE", compressed.get("tokens_after"), "MS", elapsed, flush=True)
+    if "--structural" in sys.argv[1:]:
+        from headroom.transforms.smart_crusher import SmartCrusher
+
+        candidate = deepcopy(messages)
+        tool_output = messages[-1]["content"]
+        started = time.monotonic()
+        result = SmartCrusher(lossless_only=True).crush(tool_output, record_toin=False)
+        candidate[-1]["content"] = result.compressed
+        print("STRUCTURAL", "ORIGINAL_BYTES", len(tool_output.encode()),
+              "COMPRESSED_BYTES", len(result.compressed.encode()),
+              "MS", round(1000 * (time.monotonic() - started)), flush=True)
+    else:
+        compressed, elapsed = post("/v1/compress", {
+            "model": MODEL,
+            "messages": messages,
+            "config": {"mode": "lossy_inline", "protect_recent": 0, "target_ratio": 0.5},
+        }, 20)
+        candidate = compressed.get("messages")
+        print("COMPRESS", "BEFORE_ESTIMATE", compressed.get("tokens_before"),
+              "AFTER_ESTIMATE", compressed.get("tokens_after"), "MS", elapsed, flush=True)
     if not isinstance(candidate, list) or candidate == messages:
         raise SystemExit("NO_COMPRESSION_APPLIED")
     matching_tool = [
