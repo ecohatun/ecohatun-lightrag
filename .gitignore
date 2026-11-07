@@ -99,3 +99,5 @@ memory-bank
 
 # native_parser/docx CLI output (audit JSONL + image dir)
 /parse_output/
+deploy/ecohatun-prod/mcp.env
+deploy/ecohatun-prod/.env

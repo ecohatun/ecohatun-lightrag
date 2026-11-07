@@ -1,0 +1,46 @@
+# LightRAG E5-Large 1024D PRODUCCION - servicio Dokploy «lightrag-prod» (Ecohatun Smart)
+# Promovido del piloto validado (tag piloto-validado-2026-11-07). Fix PILOTO-422FIX incluido.
+# Secretos por Dokploy Environment (interpolados): LIGHTRAG_API_KEY, LLM_BINDING_API_KEY, EMBEDDING_BINDING_API_KEY
+services:
+  lightrag:
+    container_name: ecohatun-smart-lightrag-e5-large-prod
+    image: ghcr.io/hkuds/lightrag@sha256:5bdbd524931b011df246fe20888d110cef691e6804c12cde636a2b746d7de27e
+    restart: unless-stopped
+    labels:
+      ecohatun.scope: production
+    environment:
+      HOST: 0.0.0.0
+      PORT: "9621"
+      WORKING_DIR: /app/data/rag_storage
+      INPUT_DIR: /app/data/inputs
+      LLM_BINDING: openai
+      LLM_BINDING_HOST: http://or-smart-zaivmv-omniroute-1:20128/v1
+      LLM_MODEL: ecohatun-smart-deepseek
+      LLM_BINDING_API_KEY: ${LLM_BINDING_API_KEY}
+      EMBEDDING_BINDING: openai
+      EMBEDDING_BINDING_HOST: http://compose-quantify-primary-hard-drive-dgule3-e5-large-1:8080/v1
+      EMBEDDING_MODEL: intfloat/multilingual-e5-large
+      EMBEDDING_DIM: "1024"
+      EMBEDDING_ASYMMETRIC: "true"
+      EMBEDDING_DOCUMENT_PREFIX: "passage: "
+      EMBEDDING_QUERY_PREFIX: "query: "
+      EMBEDDING_BATCH_NUM: "1"
+      EMBEDDING_BINDING_API_KEY: ${EMBEDDING_BINDING_API_KEY}
+      MAX_ASYNC_LLM: "8"
+      EMBEDDING_FUNC_MAX_ASYNC: "1"
+      CHUNK_SIZE: "320"
+      CHUNK_OVERLAP_SIZE: "48"
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY}
+    volumes:
+      - ecohatun-smart-lightrag-e5-large-prod-data:/app/data
+      - /root/ecohatun-lightrag-github/deploy/ecohatun-prod/operate.py:/app/lightrag/operate.py:ro
+    networks:
+      - dokploy-network
+
+volumes:
+  ecohatun-smart-lightrag-e5-large-prod-data:
+    external: true
+
+networks:
+  dokploy-network:
+    external: true

@@ -1,0 +1,24 @@
+# Bridge MCP Knowledge PRODUCCION - servicio Dokploy «knowledge-mcp-prod» (Ecohatun Smart)
+# Fix PILOTO-TIMEOUT90 incluido (service.py). Secretos por Dokploy Environment.
+services:
+  knowledge-mcp:
+    container_name: knowledge-mcp-prod
+    image: ghcr.io/ecohatun/ecohatun-lightrag-mcp@sha256:6dac28e9934a8e92ebdc6518943d75b4a223c1761dd9eee0b61937a212c875d5
+    restart: unless-stopped
+    labels:
+      ecohatun.scope: production
+    command: ["uvicorn", "service:app", "--app-dir", "/knowledge", "--host", "0.0.0.0", "--port", "8080", "--lifespan", "on"]
+    environment:
+      LIGHTRAG_API_KEY: ${LIGHTRAG_API_KEY}
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN}
+    volumes:
+      - /root/ecohatun-lightrag-github/deploy/ecohatun-prod/service.py:/knowledge/service.py:ro
+    networks:
+      - dokploy-network
+      - ecohatun-dify-mcp-prod
+
+networks:
+  dokploy-network:
+    external: true
+  ecohatun-dify-mcp-prod:
+    external: true
