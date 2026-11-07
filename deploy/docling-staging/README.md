@@ -20,3 +20,9 @@ Para revertir el ensayo, detener únicamente `docling-staging` desde Dokploy. Lo
 El 7 de noviembre de 2026 se verificaron 4 vCPU disponibles, 5995 MiB de RAM disponible y 63 GiB libres en el volumen de Docker. El manifiesto de la imagen oficial respondió por el digest fijado. La consulta se limitó al manifiesto, sin descargar las capas. El inventario Docker, incluidos los contenedores detenidos, no mostró nombres Docling o Multimedia.
 
 La swap tiene un archivo de 4 GiB (1,5 GiB en uso) y zram de 6 GiB (3,4 GiB de espacio lógico en uso). Zswap está desactivado. El ensayo sigue pendiente de registro y despliegue en Dokploy.
+
+## Adjuntos sintéticos reproducibles
+
+Ejecutar `python make_test_attachments.py /tmp/ecohatun-docling-fixtures` en un entorno con ReportLab, Pillow, OpenPyXL y la tipografía DejaVu Sans. El generador produce un PDF con texto, un PDF rasterizado sin capa de texto y un Excel con la hoja Cotizacion. El resultado esperado es DOC-204, T-200, cantidad 3, moneda PEN, precio unitario 1250 e importe 3750. Ambos PDF tienen una página.
+
+Verificado localmente que el PDF con texto contiene el importe, el escaneado carece de capa de texto y el Excel conserva sus valores numéricos. La extracción real con Docling está pendiente.
