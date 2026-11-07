@@ -60,7 +60,11 @@ def fixture():
 def inference(label, messages):
     result, elapsed = post("/v1/chat/completions", {
         "model": MODEL,
-        "messages": messages,
+        "messages": [
+            messages[0],
+            {"role": "user", "content": messages[1]["content"] +
+             "\n\nResultado de consultar_catalogo:\n" + messages[-1]["content"]},
+        ],
         "temperature": 0,
         "max_tokens": 768,
     }, 24)
