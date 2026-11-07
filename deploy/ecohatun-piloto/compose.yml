@@ -1,0 +1,71 @@
+# Ecohatun Smart - LightRAG E5-Large 1024D PILOTO (staging)
+# Despliegue versionado de los contenedores ecohatun-smart-lightrag-e5-large-piloto
+# y knowledge-mcp-piloto, con los dos fixes del 2026-11-06 ya incorporados:
+#   1. PILOTO-422FIX   -> ./operate.py parcheado, montado sobre /app/lightrag/operate.py
+#   2. PILOTO-TIMEOUT90 -> ./service.py (bridge MCP) con httpx timeout=90 (antes 55)
+# Detalles y reversion en README.md. Produccion NO usa este archivo.
+name: ecohatun-piloto
+
+services:
+  lightrag:
+    container_name: ecohatun-smart-lightrag-e5-large-piloto
+    # hkuds/lightrag:latest = LightRAG v1.5.7 (imagen del 2026-09-02), fijada por digest
+    image: ghcr.io/hkuds/lightrag@sha256:5bdbd524931b011df246fe20888d110cef691e6804c12cde636a2b746d7de27e
+    restart: "no"
+    labels:
+      ecohatun.scope: staging
+    env_file:
+      - .env          # secretos (NO versionado): LIGHTRAG_API_KEY, LLM_BINDING_API_KEY, EMBEDDING_BINDING_API_KEY
+    environment:
+      HOST: 0.0.0.0
+      PORT: "9621"
+      WORKING_DIR: /app/data/rag_storage
+      INPUT_DIR: /app/data/inputs
+      LLM_BINDING: openai
+      LLM_BINDING_HOST: http://or-smart-zaivmv-omniroute-1:20128/v1
+      LLM_MODEL: ecohatun-smart-deepseek
+      EMBEDDING_BINDING: openai
+      EMBEDDING_BINDING_HOST: http://compose-quantify-primary-hard-drive-dgule3-e5-large-1:8080/v1
+      EMBEDDING_MODEL: intfloat/multilingual-e5-large
+      EMBEDDING_DIM: "1024"
+      EMBEDDING_ASYMMETRIC: "true"
+      EMBEDDING_DOCUMENT_PREFIX: "passage: "
+      EMBEDDING_QUERY_PREFIX: "query: "
+      EMBEDDING_BATCH_NUM: "1"
+      MAX_ASYNC_LLM: "8"
+      EMBEDDING_FUNC_MAX_ASYNC: "1"
+      CHUNK_SIZE: "320"
+      CHUNK_OVERLAP_SIZE: "48"
+    volumes:
+      - ecohatun-smart-lightrag-e5-large-piloto-data:/app/data
+      # PILOTO-422FIX: envio de embeddings de consulta de a un texto (servidor E5 limita lote a 1)
+      - ./operate.py:/app/lightrag/operate.py:ro
+    networks:
+      - dokploy-network
+
+  knowledge-mcp:
+    container_name: knowledge-mcp-piloto
+    # ecohatun/ecohatun-lightrag-mcp:isolated-test, fijada por digest
+    image: ghcr.io/ecohatun/ecohatun-lightrag-mcp@sha256:6dac28e9934a8e92ebdc6518943d75b4a223c1761dd9eee0b61937a212c875d5
+    restart: unless-stopped
+    labels:
+      ecohatun.scope: staging
+    command: ["uvicorn", "service:app", "--app-dir", "/knowledge", "--host", "0.0.0.0", "--port", "8080", "--lifespan", "on"]
+    env_file:
+      - mcp.env       # secretos (NO versionado): LIGHTRAG_API_KEY, MCP_AUTH_TOKEN
+    volumes:
+      # PILOTO-TIMEOUT90: bridge MCP con timeout httpx 90s (antes 55s)
+      - ./service.py:/knowledge/service.py:ro
+    networks:
+      - dokploy-network
+      - ecohatun-dify-mcp-piloto
+
+volumes:
+  ecohatun-smart-lightrag-e5-large-piloto-data:
+    external: true
+
+networks:
+  dokploy-network:
+    external: true
+  ecohatun-dify-mcp-piloto:
+    external: true
