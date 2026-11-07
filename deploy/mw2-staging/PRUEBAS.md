@@ -24,3 +24,15 @@ El resultado verifica embeddings, acceso MCP y aislamiento de los dos casos sint
 La primera prueba de compresión explícita del 7 de noviembre de 2026 a las 11:49 UTC llegó a `/v1/compress` desde loopback y agotó la espera del cliente (20 s). Las dos consultas de inferencia y la medición de tokens quedaron pendientes. `vmstat` observado después registró entre 63 y 69 % de CPU steal en las cuatro muestras de intervalo. La causa del timeout sigue sin confirmar. El siguiente ensayo aísla SmartCrusher en modo estructural sin pérdida y conserva la ruta de inferencia del piloto.
 
 La segunda prueba, a las 11:52 UTC, ejecutó SmartCrusher estructural sin pérdida en 307 ms. El resultado sintético pasó de 6111 a 3049 bytes (50,1 %). DeepSeek devolvió HTTP 400 al recibir una llamada de herramienta sintética sin el campo `reasoning_content` que exige en modo thinking. El ahorro en tokens del proveedor sigue pendiente. El script ahora presenta el resultado original o comprimido como contexto de usuario en ambas consultas de inferencia. Los logs también registraron el fallback de `/v1/compress` a los 30 s y un intento fallido de cargar Kompress en modo offline por falta del modelo en caché local.
+
+La comparación estructural corregida pasó con el script del commit `c9a1eb066fc500ff5430024733a021ba7c334958`, por el mismo proxy de staging y el alias `ecohatun-smart-deepseek` de OmniRoute.
+
+| Métrica | Original | Comprimido |
+|---|---:|---:|
+| Contexto sintético en bytes | 6111 | 3049 |
+| Tokens de entrada reportados por la API | 2524 | 1242 |
+| Tokens de salida reportados por la API | 104 | 139 |
+| Latencia de inferencia en el cliente | 2098 ms | 1910 ms |
+| T-200, 20 tubos, Manual Ecohatun p. 2 | Correcto | Correcto |
+
+SmartCrusher sin pérdida tardó 87 ms. La diferencia de entrada fue de 1282 tokens (50,8 %). Los dos resultados compararon exactamente modelo, tubos, fuente y página. Es una sola pareja de corridas con un catálogo sintético, mediante compresión explícita antes del envío. Queda pendiente evaluar la compresión automática en el proxy, con entradas representativas de MW2 y mediciones repetidas.
